@@ -279,9 +279,10 @@ BOOL CALLBACK TxcEnumResourceLanguages(HANDLE /*hModule*/, LPCTSTR lpszType, LPC
 
 const CString CTeXnicCenterApp::GetDDEServerName() const
 {
-	CString strShortName;
-	AfxGetModuleShortFileName(AfxGetInstanceHandle(), strShortName);
-	return CPathTool::GetFileTitle(strShortName);
+	// CWinApp::EnableShellOpen registers the System topic using m_pszAppName.
+	// Constructing a CString here ensures callers do not depend on the lifetime
+	// of MFC's application-name buffer.
+	return CString(m_pszAppName);
 }
 
 BOOL CTeXnicCenterApp::InitInstance()
@@ -304,6 +305,10 @@ BOOL CTeXnicCenterApp::InitInstance()
 
 	// enable DDE commands
 	EnableShellOpen();
+
+	// Keep the client service name in sync with the service EnableShellOpen()
+	// registered for the System topic.
+	ASSERT(GetDDEServerName() == m_pszAppName);
 
 	// handle DDE-command on command line
 	if (!cmdInfo.m_strDdeCommand.IsEmpty())
