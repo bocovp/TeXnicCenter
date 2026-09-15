@@ -303,21 +303,25 @@ BOOL CTeXnicCenterApp::InitInstance()
 	if (!CProjectSupportingWinApp::InitInstance())
 		return FALSE;
 
-	// enable DDE commands
+	// handle DDE-command on command line
+	if (!cmdInfo.m_strDdeCommand.IsEmpty())
+	{
+		// Try to forward the command before registering this process as a DDE
+		// server.  Otherwise DdeConnect may establish the conversation with the
+		// process that is still starting instead of the existing instance.
+		if (CDdeCommand::SendCommand(GetDDEServerName(), cmdInfo.m_strDdeCommand, _T("System")))
+			// ... if successful, exit this instance
+			return FALSE;
+	}
+
+	// No existing instance accepted the command.  Register this process as the
+	// DDE server before creating its main window so future inverse-search
+	// requests can be forwarded here.
 	EnableShellOpen();
 
 	// Keep the client service name in sync with the service EnableShellOpen()
 	// registered for the System topic.
 	ASSERT(GetDDEServerName() == m_pszAppName);
-
-	// handle DDE-command on command line
-	if (!cmdInfo.m_strDdeCommand.IsEmpty())
-	{
-		// try to forward DDE command to an existing instance ...
-		if (CDdeCommand::SendCommand(GetDDEServerName(), cmdInfo.m_strDdeCommand, _T("System")))
-			// ... if successful, exit this instance
-			return FALSE;
-	}
 
 	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	// load configuration from registry
