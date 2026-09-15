@@ -196,7 +196,7 @@ BOOL CDdeCommand::SendCommandHelper(LPCTSTR lpszServer,LPCTSTR lpszCommand,LPCTS
 		DdeDisconnect(hConversation);
 		DdeFreeStringHandle(dwId,hszServerName);
 		DdeFreeStringHandle(dwId,hszTopic);
-		//DdeUninitialize(dwId);
+		DdeUninitialize(dwId);
 	}
 	catch (...)
 	{

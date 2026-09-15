@@ -316,7 +316,7 @@ BOOL CTeXnicCenterApp::InitInstance()
 		// try to forward DDE command to an existing instance ...
 		if (CDdeCommand::SendCommand(GetDDEServerName(), cmdInfo.m_strDdeCommand, _T("System")))
 			// ... if successful, exit this instance
-			return TRUE;
+			return FALSE;
 	}
 
 	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -497,12 +497,10 @@ BOOL CTeXnicCenterApp::InitInstance()
 	// 2. ... have we got a DDE-command on the command line?
 	else if (!cmdInfo.m_strDdeCommand.IsEmpty())
 	{
-		// forward command to DDE-processor
-		//TODO: Why do we not directly call OnDDECommand() here?
-		// We know here that this instance will process the stuff.
-		// Sending it via DDE causes a long pause. This is a real problem when opening TXC via YAP.
-		CDdeCommand::SendCommand(GetDDEServerName(), cmdInfo.m_strDdeCommand, _T("System"));
-		//OnDDECommand(const_cast<LPTSTR>((LPCTSTR)cmdInfo.m_strDdeCommand));
+		// No existing DDE server accepted the command, so this is the instance
+		// that must process it.  Sending it through DDE again would target this
+		// partially initialized process and can lose the inverse-search request.
+		OnDDECommand(const_cast<LPTSTR>((LPCTSTR)cmdInfo.m_strDdeCommand));
 	}
 	// 3. ...are we to open a file and it is a project type?
 	else if ((cmdInfo.m_nShellCommand == CCommandLineInfo::FileOpen) &&
