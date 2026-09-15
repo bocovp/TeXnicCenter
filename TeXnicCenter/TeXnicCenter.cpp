@@ -279,10 +279,10 @@ BOOL CALLBACK TxcEnumResourceLanguages(HANDLE /*hModule*/, LPCTSTR lpszType, LPC
 
 const CString CTeXnicCenterApp::GetDDEServerName() const
 {
-	// CWinApp::EnableShellOpen registers the System topic using m_pszAppName.
-	// Constructing a CString here ensures callers do not depend on the lifetime
-	// of MFC's application-name buffer.
-	return CString(m_pszAppName);
+	// CWinApp::EnableShellOpen registers the executable name, not the display
+	// name from AFX_IDS_APP_TITLE, as its DDE service name.  These names differ
+	// for TeXnicCenter (TeXnicCenter.exe and TeXnicCenterNT respectively).
+	return CString(m_pszExeName);
 }
 
 BOOL CTeXnicCenterApp::InitInstance()
@@ -321,7 +321,7 @@ BOOL CTeXnicCenterApp::InitInstance()
 
 	// Keep the client service name in sync with the service EnableShellOpen()
 	// registered for the System topic.
-	ASSERT(GetDDEServerName() == m_pszAppName);
+	ASSERT(GetDDEServerName() == m_pszExeName);
 
 	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	// load configuration from registry
