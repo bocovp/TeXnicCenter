@@ -279,9 +279,10 @@ BOOL CALLBACK TxcEnumResourceLanguages(HANDLE /*hModule*/, LPCTSTR lpszType, LPC
 
 const CString CTeXnicCenterApp::GetDDEServerName() const
 {
-	CString strShortName;
-	AfxGetModuleShortFileName(AfxGetInstanceHandle(), strShortName);
-	return CPathTool::GetFileTitle(strShortName);
+	// CWinApp::EnableShellOpen registers the executable name, not the display
+	// name from AFX_IDS_APP_TITLE, as its DDE service name.  These names differ
+	// for TeXnicCenter (TeXnicCenter.exe and TeXnicCenterNT respectively).
+	return CString(m_pszExeName);
 }
 
 BOOL CTeXnicCenterApp::InitInstance()
@@ -302,17 +303,25 @@ BOOL CTeXnicCenterApp::InitInstance()
 	if (!CProjectSupportingWinApp::InitInstance())
 		return FALSE;
 
-	// enable DDE commands
-	EnableShellOpen();
-
 	// handle DDE-command on command line
 	if (!cmdInfo.m_strDdeCommand.IsEmpty())
 	{
-		// try to forward DDE command to an existing instance ...
+		// Try to forward the command before registering this process as a DDE
+		// server.  Otherwise DdeConnect may establish the conversation with the
+		// process that is still starting instead of the existing instance.
 		if (CDdeCommand::SendCommand(GetDDEServerName(), cmdInfo.m_strDdeCommand, _T("System")))
 			// ... if successful, exit this instance
-			return TRUE;
+			return FALSE;
 	}
+
+	// No existing instance accepted the command.  Register this process as the
+	// DDE server before creating its main window so future inverse-search
+	// requests can be forwarded here.
+	EnableShellOpen();
+
+	// Keep the client service name in sync with the service EnableShellOpen()
+	// registered for the System topic.
+	ASSERT(GetDDEServerName() == m_pszExeName);
 
 	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	// load configuration from registry
@@ -492,12 +501,10 @@ BOOL CTeXnicCenterApp::InitInstance()
 	// 2. ... have we got a DDE-command on the command line?
 	else if (!cmdInfo.m_strDdeCommand.IsEmpty())
 	{
-		// forward command to DDE-processor
-		//TODO: Why do we not directly call OnDDECommand() here?
-		// We know here that this instance will process the stuff.
-		// Sending it via DDE causes a long pause. This is a real problem when opening TXC via YAP.
-		CDdeCommand::SendCommand(GetDDEServerName(), cmdInfo.m_strDdeCommand, _T("System"));
-		//OnDDECommand(const_cast<LPTSTR>((LPCTSTR)cmdInfo.m_strDdeCommand));
+		// No existing DDE server accepted the command, so this is the instance
+		// that must process it.  Sending it through DDE again would target this
+		// partially initialized process and can lose the inverse-search request.
+		OnDDECommand(const_cast<LPTSTR>((LPCTSTR)cmdInfo.m_strDdeCommand));
 	}
 	// 3. ...are we to open a file and it is a project type?
 	else if ((cmdInfo.m_nShellCommand == CCommandLineInfo::FileOpen) &&

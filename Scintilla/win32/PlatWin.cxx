@@ -101,6 +101,16 @@ static BOOL (WINAPI *GetMonitorInfoFn)(HMONITOR, LPMONITORINFO) = 0;
 
 static HCURSOR reverseArrowCursor = NULL;
 
+struct TextCursor
+{
+	int width;
+	int height;
+	int strokeWidth;
+	HCURSOR cursor;
+};
+
+static std::vector<TextCursor> textCursors;
+
 bool IsNT() {
 	return onNT;
 }
@@ -1975,10 +1985,98 @@ static HCURSOR GetReverseArrowCursor() {
 	return cursor;
 }
 
+static void SetCursorPixel(std::vector<unsigned char>& bits, int stride, int x, int y)
+{
+	bits[y * stride + x / 8] |= static_cast<unsigned char>(0x80 >> (x % 8));
+}
+
+static HCURSOR GetTextCursor(HWND window)
+{
+	HDC dc = ::GetDC(window);
+	const int dpi = dc ? ::GetDeviceCaps(dc, LOGPIXELSX) : 96;
+	if (dc)
+		::ReleaseDC(window, dc);
+
+	// Retain the standard cursor at normal density, including any cursor theme
+	// selected by the user. Above 96 DPI draw an I-beam whose strokes scale in
+	// physical pixels instead of remaining one pixel wide.
+	if (dpi <= 96)
+		return ::LoadCursor(NULL, IDC_IBEAM);
+
+	const int width = ::GetSystemMetrics(SM_CXCURSOR);
+	const int height = ::GetSystemMetrics(SM_CYCURSOR);
+	const int strokeWidth = (dpi + 95) / 96;
+
+	for (std::vector<TextCursor>::const_iterator it = textCursors.begin(); it != textCursors.end(); ++it)
+	{
+		if (it->width == width && it->height == height && it->strokeWidth == strokeWidth)
+			return it->cursor;
+	}
+
+	const int stride = ((width + 15) / 16) * 2;
+	std::vector<unsigned char> andMask(stride * height, 0xff);
+	std::vector<unsigned char> xorMask(stride * height, 0);
+	const int centre = width / 2;
+
+	// INCREASED MARGIN: height / 6 (instead of / 8) makes the cursor shorter
+	const int top = height / 6;
+	const int bottom = height - top - 1;
+
+	// Give the stem and crossbars the same centre line: through the hotspot for
+	// odd stroke widths and halfway between its two middle pixels for even ones.
+	const int strokeLeft = centre - strokeWidth / 2;
+	const int strokeRight = strokeLeft + strokeWidth;
+
+	// DECREASED CROSSBAR: width / 12 (instead of / 8) makes the I-beam narrower
+	const int barWidth = strokeWidth * 5;
+	const int barLeft = centre - barWidth / 2;
+	const int barRight = barLeft + barWidth;
+
+	// Start and finish the stem in the innermost row of each crossbar. The
+	// progressively narrowing gaps form the small, conventional indent where
+	// each crossbar joins the stem instead of leaving a blunt T-junction.
+	for (int y = top + strokeWidth - 1; y <= bottom - strokeWidth + 1; ++y)
+	{
+		for (int x = strokeLeft; x < strokeLeft + strokeWidth; ++x)
+			SetCursorPixel(xorMask, stride, x, y);
+	}
+	for (int y = top; y < top + strokeWidth; ++y)
+	{
+		const int notch = strokeWidth - 1 - (y - top);
+		for (int x = barLeft; x < barRight; ++x)
+		{
+			if (x < strokeLeft || x >= strokeRight)
+				SetCursorPixel(xorMask, stride, x, y);
+		}
+	}
+	for (int y = bottom - strokeWidth + 1; y <= bottom; ++y)
+	{
+		const int notch = y - (bottom - strokeWidth + 1);
+		for (int x = barLeft; x < barRight; ++x)
+		{
+			if (x < strokeLeft || x >= strokeRight)
+				SetCursorPixel(xorMask, stride, x, y);
+		}
+	}
+
+	HCURSOR cursor = ::CreateCursor(hinstPlatformRes, centre, height / 2, width, height,
+									&andMask[0], &xorMask[0]);
+	if (cursor)
+	{
+		TextCursor entry = {width, height, strokeWidth, cursor};
+		textCursors.push_back(entry);
+		return cursor;
+	}
+	return ::LoadCursor(NULL, IDC_IBEAM);
+}
+
+
+
 void Window::SetCursor(Cursor curs) {
 	switch (curs) {
 	case cursorText:
-		::SetCursor(::LoadCursor(NULL,IDC_IBEAM));
+		::SetCursor(::LoadCursor(NULL, IDC_IBEAM));
+		::SetCursor(GetTextCursor(reinterpret_cast<HWND>(wid)));
 		break;
 	case cursorUp:
 		::SetCursor(::LoadCursor(NULL,IDC_UPARROW));
@@ -3247,6 +3345,9 @@ void Platform_Initialise(void *hInstance) {
 void Platform_Finalise() {
 	if (reverseArrowCursor != NULL)
 		::DestroyCursor(reverseArrowCursor);
+	for (std::vector<TextCursor>::const_iterator it = textCursors.begin(); it != textCursors.end(); ++it)
+		::DestroyCursor(it->cursor);
+	textCursors.clear();
 	ListBoxX_Unregister();
 	::DeleteCriticalSection(&crPlatformLock);
 }

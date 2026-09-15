@@ -663,6 +663,13 @@ void CodeView::OnSettingsChanged()
 
 	GetCtrl().SetCaretStyle(CConfiguration::GetInstance()->m_nInsertCaretStyle);
 	GetCtrl().SetCaretPeriod(CConfiguration::GetInstance()->m_nInsertCaretBlinkPeriod);
+
+	// Scintilla measures the caret in pixels, so its one-pixel default becomes
+	// difficult to see when the display is scaled. Keep that default at 96 DPI,
+	// and scale it up with the monitor's pixel density.
+	CClientDC dc(this);
+	const int dpi = dc.GetDeviceCaps(LOGPIXELSX);
+	GetCtrl().SetCaretWidth((dpi + 95) / 96);
 }
 
 void CodeView::OnSysColorChange()

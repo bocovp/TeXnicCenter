@@ -42,7 +42,7 @@ static char THIS_FILE[] = __FILE__;
 // class CProjectSupportingWinApp implementation
 //-------------------------------------------------------------------
 
-BEGIN_MESSAGE_MAP(CProjectSupportingWinApp, CWinApp)
+BEGIN_MESSAGE_MAP(CProjectSupportingWinApp, CWinAppEx)
 	ON_COMMAND(ID_PROJECT_NEW, OnProjectNew)
 	ON_COMMAND(ID_PROJECT_OPEN, OnProjectOpen)
 END_MESSAGE_MAP()
@@ -113,7 +113,7 @@ void CProjectSupportingWinApp::OnProjectOpen()
 
 BOOL CProjectSupportingWinApp::SaveAllModified()
 {
-	if (!CWinApp::SaveAllModified())
+	if (!CWinAppEx::SaveAllModified())
 		return FALSE;
 
 	if (m_pProjectManager != NULL)
@@ -124,7 +124,7 @@ BOOL CProjectSupportingWinApp::SaveAllModified()
 
 BOOL CProjectSupportingWinApp::InitApplication()
 {
-	if (!CWinApp::InitApplication())
+	if (!CWinAppEx::InitApplication())
 		return FALSE;
 
 	if (CProjectManager::pStaticProjectManager != NULL)
@@ -145,7 +145,7 @@ BOOL CProjectSupportingWinApp::InitApplication()
 
 BOOL CProjectSupportingWinApp::OnCmdMsg(UINT nID, int nCode, void *pExtra, AFX_CMDHANDLERINFO *pHandlerInfo)
 {
-	if (CWinApp::OnCmdMsg(nID, nCode, pExtra, pHandlerInfo))
+	if (CWinAppEx::OnCmdMsg(nID, nCode, pExtra, pHandlerInfo))
 		return TRUE;
 
 	if (!m_pProjectManager)
@@ -174,12 +174,12 @@ BOOL CProjectSupportingWinApp::OnDDECommand(LPTSTR lpszCommand)
 	if (m_pProjectManager != NULL && m_pProjectManager->OnDDECommand(lpszCommand))
 		return TRUE;
 
-	return CWinApp::OnDDECommand(lpszCommand);
+	return CWinAppEx::OnDDECommand(lpszCommand);
 }
 
 void CProjectSupportingWinApp::RegisterShellFileTypes(BOOL bCompat)
 {
-	CWinApp::RegisterShellFileTypes(bCompat);
+	CWinAppEx::RegisterShellFileTypes(bCompat);
 	ASSERT(m_pProjectManager != NULL);
 	m_pProjectManager->RegisterShellFileTypes(bCompat);
 }
